@@ -1,0 +1,110 @@
+Services
+
+- have a onen to one mapping with a task
+- it is the services job to enusre the task is ruuning
+- if a task becomes unhealth the service will spin a new one up
+- services determine if/how a task is exposed to the outside world
+
+Dynamic Host Port Mapping
+
+a host port of 0 inidicates it is Dynamic and will be assigned an available port not in use
+
+"portMappings": [
+    {
+        "hostPort": "0",
+        "containerPort": "0",
+        "protocol": "tcp"
+    }
+]
+
+
+Load balancing and autoscaling
+****************************
+
+You want to use an application load balancer as this can handle dynamic port mappings 
+which enable all docker containers to map to "0:80"
+
+*** Also you need to create the load balancer before you create the ecs cluster
+*** this is so you can tell the cluster which ALB to use, and once done, the ALB
+*** in conjuction with the service will spin up the required docker images 
+
+Creating an application load balancer
+
+EC2 / Load Balancers / Create
+
+Step 1: Configure load balancer
+Name: qbwc-api-test or qbwc-soap-server-test
+Scheme: internet-facing (for soap-server)
+        internal (for qbwc-api) // start with internet-facing
+IP Address type: ipv4
+Listeners
+- Load balancer protocol: HTTP
+- Load balancer port: 80
+Availability Zones
+VPC: Select existing vpc
+Availibility zone(s): select the azs you want
+Step 2: Configure security settings
+*** this is only applicable when have configured a https 443 Listeners
+Step 3: Configure security groups
+Select the appropriate security group(s)
+[ECS-Test, Test-Lambda]
+Step 4: Configure routing
+Target group: New target group
+Name: qbwc-api-test or qbwc-soap-server-test
+Target type: instance
+Protocol: HTTP
+Port: 80
+Health checks
+Protocol: HTTP
+Path: /         // basically anything that will return a 200 OK on a /GET if its healthy
+Step 5: Register targets
+Nothing to do here
+ECS will automatically register and deregister instances for you as required
+This is really nice. for example if you are using spot instances, 
+you couldnt configure this as the spot instance can go at any minute.
+thats why ecs wil do it for you
+Step 6: Review
+
+Creating an ECS service
+***********************
+Amazon ECS / Clusters / {the cluster} / Services / Create
+
+Step 1: Configure service
+
+Launch type: EC2
+Task Defintion: This will be the task definition you have already created e.g. the docker-compose file you have created
+Revision: Typically (latest)
+Cluster: This should have already been created e.g. qbwc-api or qbwc-soap-server or a merge of both ;) qbwc and have 2 services and 2 task definitions
+Service name: name of your service e.g. qbwc-api-test , or, qbwc-soap-server-test
+Service type: REPLICA
+Number of tasks: 1 // we only need each task definition to run e.g. 1 instance of php and web and 1 instance of soap server // this is the minimum number of runnings tasks
+minimum healthy percent: 20     // need to review this
+minimum healthy percent: 100    // need to review this
+Task placement: AZ Balanced Spread
+
+Step 2: Confgiure network
+Health check grace period: 0-7200 (seconds) e.g. use 60   
+// this is only vaid if your service is confgiured to use a load balancer
+// this grace period gives your tasks time to start up before health checker flags them as unhealthy
+// *** important to get this time right so your not shutting down containers that are starting up
+Load balancing
+Type: Application Load Balancer
+Service IAM role: ecsServiceRole
+Loab balancer name: qbwc-api-test , or, qbwc-soap-server-test
+Container to load balance
+[Container name : port]: qbwc-php:0:80 or qbwc-web:0:80 or qbwc-soap-server:0:80
+                        // *** this name is configured in the task definition ***
+Listener port: 80:HTTP
+Listener protocol: HTTP
+Target group name: [create new] qbwc-api-test , or, qbwc-soap-server-test
+Target group protocol: HTTP
+Target type: instance
+path pattern: not required as there is a default of /
+*** we could use the path to send the request to another ec2 instance e.g. /support to the help page ;)
+Health check path: /
+
+
+
+Step 3: Set autoscaling (optional)
+Service auto scaling: Do not adjust the services desired count
+
