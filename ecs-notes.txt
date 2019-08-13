@@ -108,3 +108,28 @@ Health check path: /
 Step 3: Set autoscaling (optional)
 Service auto scaling: Do not adjust the services desired count
 
+
+//
+// HOW TO:
+//
+
+
+//
+// get a clusters service definition:
+
+aws ecs describe-services --cluster qbwc-soap-server-test --service qbwc-soap-server-test | jq '.' -C | less
+
+
+//
+// update the desired count for a service to be 1
+
+aws ecs update-service --cluster qbwc-soap-server-test --service qbwc-soap-server-test --desired-count 1
+
+
+//
+// update the task definition for a service
+
+aws ecs update-service --cluster qbwc-soap-server-test --service qbwc-soap-server-test --task-definition qbwc-soap-server-test:18
+
+
+
