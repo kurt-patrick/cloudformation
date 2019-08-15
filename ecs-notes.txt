@@ -133,3 +133,32 @@ aws ecs update-service --cluster qbwc-soap-server-test --service qbwc-soap-serve
 
 
 
+// Create a cluster
+aws ecs create-cluster --cluster-name {name}
+
+// delete a cluster
+aws ecs delete-cluster --cluster-name {name} | jq
+
+// register a task definition
+aws ecs register-task-definition \ 
+--cli-input-json file://taskname.json
+
+// list task definitions
+aws ecs list-task-definitions
+
+// create a service
+aws ecs create-service --cluster {cluster-name} \
+--service-name {service-name} \
+--task-definition {taskname:revision} \
+--desired-count 1 \
+--launch-type "EC2" \
+--network-configuration \
+"awsvpcConfiguration={subnets=[subnet-xxx,subnet-yyy],securityGroups=[sg-xxx,sg-yyy]}"
+
+// list services
+aws ecs list-services --cluster {cluster-name} | jq
+
+// describe running services
+aws ecs describe-services --cluster qbwc-soap-server-test \
+--services qbwc-soap-server-test | jq '.' -C | less
+
